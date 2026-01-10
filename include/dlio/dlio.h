@@ -62,10 +62,10 @@ namespace dlio {
     PCL_ADD_POINT4D;
     float intensity; // intensity
     union {
-    std::uint32_t t;   // (Ouster) time since beginning of scan in nanoseconds
-    float time;        // (Velodyne) time since beginning of scan in seconds
-    double timestamp;  // (Hesai) absolute timestamp in seconds
-                       // (Livox) absolute timestamp in (seconds * 10e9)
+    std::uint32_t t;           // Ouster: time since beginning of scan in nanoseconds
+    float time;                // Velodyne: time since beginning of scan in seconds
+    std::uint32_t offset_time; // Livox: time from beginning of scan in nanoseconds
+    double timestamp;          // Hesai: absolute timestamp in seconds
     };
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   } EIGEN_ALIGN16;
@@ -78,6 +78,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(dlio::Point,
                                  (float, intensity, intensity)
                                  (std::uint32_t, t, t)
                                  (float, time, time)
+                                 (std::uint32_t, offset_time, offset_time)
                                  (double, timestamp, timestamp))
 
 typedef dlio::Point PointType;

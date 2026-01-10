@@ -179,7 +179,6 @@ private:
   pcl::VoxelGrid<PointType> voxel;
 
   // Point Clouds
-  std::string pc_source_; // livox2 or pc2
   pcl::PointCloud<PointType>::ConstPtr original_scan;
   pcl::PointCloud<PointType>::ConstPtr deskewed_scan;
   pcl::PointCloud<PointType>::ConstPtr current_scan;
@@ -349,6 +348,7 @@ private:
   bool calibrate_gyro_;
   bool calibrate_accel_;
   bool gravity_align_;
+  bool imu_normalized_;
   double imu_calib_time_;
   int imu_buffer_size_;
   Eigen::Matrix3f imu_accel_sm_;

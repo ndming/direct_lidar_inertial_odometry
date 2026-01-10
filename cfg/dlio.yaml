@@ -17,18 +17,20 @@
 
     adaptive: true
 
-    pointcloud/source: livox2
     pointcloud/deskew: true
     pointcloud/voxelize: true
 
     imu/calibration: true
+    imu/normalized: true
     imu/intrinsics/accel/bias: [ 0.0, 0.0, 0.0 ]
     imu/intrinsics/accel/sm:   [ 1.,  0.,  0.,
                                  0.,  1.,  0.,
                                  0.,  0.,  1. ]
     imu/intrinsics/gyro/bias: [ 0.0, 0.0, 0.0 ]
 
-    extrinsics/baselink2imu/t: [ -0.042382, -0.019593,   0.020312 ] # 0.006253, -0.011775, 0.007645
+    # 0.006253, -0.011775, 0.007645
+    # -0.042382, -0.019593,   0.020312
+    extrinsics/baselink2imu/t: [ 0.011, 0.02329, -0.04412 ]
     extrinsics/baselink2imu/R: [ 1.,  0.,  0.,
                                  0.,  1.,  0.,
                                  0.,  0.,  1. ]
