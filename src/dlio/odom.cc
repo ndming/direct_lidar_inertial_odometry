@@ -215,6 +215,10 @@ void dlio::OdomNode::getParams() {
   // Wait until movement to publish map
   dlio::declare_param(this, "map/waitUntilMove", this->wait_until_move_, false);
 
+  // Range filter
+  dlio::declare_param(this, "odom/preprocessing/minRange", this->min_range_, 1.0);
+  dlio::declare_param(this, "odom/preprocessing/maxRange", this->max_range_, 40.0);
+
   // Crop Box Filter
   dlio::declare_param(this, "odom/preprocessing/cropBoxFilter/size", this->crop_size_, 1.0);
 
@@ -224,6 +228,9 @@ void dlio::OdomNode::getParams() {
 
   // Adaptive Parameters
   dlio::declare_param(this, "adaptive", this->adaptive_params_, true);
+
+  // Verbosity
+  dlio::declare_param(this, "verbose", this->verbose_, false);
 
   // Extrinsics
   std::vector<double> t_default{0., 0., 0.};
@@ -311,6 +318,9 @@ void dlio::OdomNode::getParams() {
 }
 
 void dlio::OdomNode::start() {
+  if (!this->verbose_) {
+    return;
+  }
 
   printf("\033[2J\033[1;1H");
   std::cout << std::endl
@@ -560,13 +570,28 @@ void dlio::OdomNode::getScanFromLivox(const livox_ros_driver2::msg::CustomMsg::S
   std::vector<int> idx;
   pcl::removeNaNFromPointCloud(*scan, *scan, idx);
 
+  // Range filter
+  pcl::PointCloud<PointType>::Ptr ranged(new pcl::PointCloud<PointType>());
+  ranged->reserve(scan->points.size());
+
+  for (const auto& p : scan->points) {
+    float r = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+    if (r > this->min_range_ && r < this->max_range_) {
+      ranged->points.push_back(p);
+    }
+  }
+
+  ranged->width = ranged->points.size();
+  ranged->height = 1;
+  ranged->is_dense = false;
+
   // Crop filter (same as ROS path)
-  this->crop.setInputCloud(scan);
-  this->crop.filter(*scan);
+  this->crop.setInputCloud(ranged);
+  this->crop.filter(*ranged);
 
   this->sensor = dlio::SensorType::LIVOX;
   this->scan_header_stamp = pc->header.stamp;
-  this->original_scan = scan;
+  this->original_scan = ranged;
 }
 
 void dlio::OdomNode::preprocessPoints() {
@@ -886,8 +911,10 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::msg::PointCloud2::Sha
   this->gicp_hasConverged = this->gicp.hasConverged();
 
   // Debug statements and publish custom DLIO message
-  this->debug_thread = std::thread( &dlio::OdomNode::debug, this );
-  this->debug_thread.detach();
+  if (this->verbose_) {
+    this->debug_thread = std::thread(&dlio::OdomNode::debug, this);
+    this->debug_thread.detach();
+  }
 
   this->geo.first_opt_done = true;
 }
@@ -984,8 +1011,10 @@ void dlio::OdomNode::callbackLivoxLidar(const livox_ros_driver2::msg::CustomMsg:
   this->gicp_hasConverged = this->gicp.hasConverged();
 
   // Debug statements and publish custom DLIO message
-  this->debug_thread = std::thread( &dlio::OdomNode::debug, this );
-  this->debug_thread.detach();
+  if (this->verbose_) {
+      this->debug_thread = std::thread( &dlio::OdomNode::debug, this );
+      this->debug_thread.detach();
+  }
 
   this->geo.first_opt_done = true;
 }
@@ -1006,9 +1035,15 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu_raw)
   ang_vel[1] = imu->angular_velocity.y;
   ang_vel[2] = imu->angular_velocity.z;
 
-  lin_accel[0] = imu->linear_acceleration.x;
-  lin_accel[1] = imu->linear_acceleration.y;
-  lin_accel[2] = imu->linear_acceleration.z;
+  if (this->imu_normalized_) {
+    lin_accel[0] = imu->linear_acceleration.x * this->gravity_;
+    lin_accel[1] = imu->linear_acceleration.y * this->gravity_;
+    lin_accel[2] = imu->linear_acceleration.z * this->gravity_;
+  } else {
+    lin_accel[0] = imu->linear_acceleration.x;
+    lin_accel[1] = imu->linear_acceleration.y;
+    lin_accel[2] = imu->linear_acceleration.z;
+  }
 
   if (this->first_imu_stamp == 0.) {
     this->first_imu_stamp = imu_stamp_secs;
@@ -1526,16 +1561,21 @@ sensor_msgs::msg::Imu::SharedPtr dlio::OdomNode::transformImu(const sensor_msgs:
   static Eigen::Vector3f ang_vel_cg_prev = ang_vel_cg;
 
   // Transform linear acceleration (need to account for component due to translational difference)
+  Eigen::Vector3f lin_accel(imu_raw->linear_acceleration.x,
+                            imu_raw->linear_acceleration.y,
+                            imu_raw->linear_acceleration.z);
+
   // See: https://github.com/vectr-ucla/direct_lidar_inertial_odometry/issues/71
-  Eigen::Vector3f lin_accel;
-  if (this->imu_normalized_) {
-    lin_accel[0] = imu_raw->linear_acceleration.x * this->gravity_;
-    lin_accel[1] = imu_raw->linear_acceleration.y * this->gravity_;
-    lin_accel[2] = imu_raw->linear_acceleration.z * this->gravity_;
-  } else {
-    lin_accel[0] = imu_raw->linear_acceleration.x;
-    lin_accel[1] = imu_raw->linear_acceleration.y;
-    lin_accel[2] = imu_raw->linear_acceleration.z;
+  // Eigen::Vector3f lin_accel;
+  // if (this->imu_normalized_) {
+  //   lin_accel[0] = imu_raw->linear_acceleration.x * this->gravity_;
+  //   lin_accel[1] = imu_raw->linear_acceleration.y * this->gravity_;
+  //   lin_accel[2] = imu_raw->linear_acceleration.z * this->gravity_;
+  // } else {
+  //   lin_accel[0] = imu_raw->linear_acceleration.x;
+  //   lin_accel[1] = imu_raw->linear_acceleration.y;
+  //   lin_accel[2] = imu_raw->linear_acceleration.z;
+  // }
 
   Eigen::Vector3f lin_accel_cg = this->extrinsics.baselink2imu.R * lin_accel;
 
@@ -1563,7 +1603,7 @@ void dlio::OdomNode::computeSpaciousness() {
   // compute range of points
   std::vector<float> ds;
 
-  for (int i = 0; i <= this->original_scan->points.size(); i++) {
+  for (int i = 0; i < this->original_scan->points.size(); i++) {
     float d = std::sqrt(pow(this->original_scan->points[i].x, 2) +
                         pow(this->original_scan->points[i].y, 2));
     ds.push_back(d);

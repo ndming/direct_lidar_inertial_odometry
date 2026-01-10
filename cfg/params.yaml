@@ -31,6 +31,8 @@
     odom/imu/calibration/time: 3.0
     odom/imu/bufferSize: 5000
 
+    odom/preprocessing/minRange: 1.0
+    odom/preprocessing/maxRange: 30.0
     odom/preprocessing/cropBoxFilter/size: 1.0
     odom/preprocessing/voxelFilter/res: 0.25
 

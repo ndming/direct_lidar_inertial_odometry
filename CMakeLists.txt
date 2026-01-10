@@ -26,8 +26,8 @@ find_package(PCL REQUIRED)
 find_package( Eigen3 REQUIRED )
 find_package(Threads REQUIRED)
 
+add_compile_options(-std=c++17 -O3 -mtune=native -march=native -funroll-loops -fopenmp -fopt-info-vec-optimized) #-funsafe-math-optimizations -funsafe-loop-optimizations
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -96,7 +96,6 @@ install( DIRECTORY cfg launch
          DESTINATION share/${PROJECT_NAME} 
 )
 
-add_compile_options(-std=c++14)
 link_directories(${PCL_LIBRARY_DIRS})
 
 include(FindOpenMP)

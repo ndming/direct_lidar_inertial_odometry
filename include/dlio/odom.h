@@ -175,6 +175,8 @@ private:
   std::string imu_frame;
 
   // Preprocessing
+  double min_range_;
+  double max_range_;
   pcl::CropBox<PointType> crop;
   pcl::VoxelGrid<PointType> voxel;
 
@@ -323,6 +325,7 @@ private:
   bool time_offset_;
 
   bool adaptive_params_;
+  bool verbose_;
 
   double obs_submap_thresh_;
   double obs_keyframe_thresh_;
