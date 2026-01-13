@@ -216,6 +216,7 @@ void dlio::OdomNode::getParams() {
   dlio::declare_param(this, "map/waitUntilMove", this->wait_until_move_, false);
 
   // Range filter
+  dlio::declare_param(this, "odom/preprocessing/filterRange", this->filter_range_, false);
   dlio::declare_param(this, "odom/preprocessing/minRange", this->min_range_, 1.0);
   dlio::declare_param(this, "odom/preprocessing/maxRange", this->max_range_, 40.0);
 
@@ -571,13 +572,18 @@ void dlio::OdomNode::getScanFromLivox(const livox_ros_driver2::msg::CustomMsg::S
   pcl::removeNaNFromPointCloud(*scan, *scan, idx);
 
   // Range filter
-  pcl::PointCloud<PointType>::Ptr ranged(new pcl::PointCloud<PointType>());
-  ranged->reserve(scan->points.size());
+  pcl::PointCloud<PointType>::Ptr ranged;
+  if (!this->filter_range_) {
+    ranged = scan;
+  } else {
+    ranged = pcl::PointCloud<PointType>::Ptr(new pcl::PointCloud<PointType>());
+    ranged->reserve(scan->points.size());
 
-  for (const auto& p : scan->points) {
-    float r = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
-    if (r > this->min_range_ && r < this->max_range_) {
-      ranged->points.push_back(p);
+    for (const auto& p : scan->points) {
+      float r = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+      if (r > this->min_range_ && r < this->max_range_) {
+        ranged->points.push_back(p);
+      }
     }
   }
 

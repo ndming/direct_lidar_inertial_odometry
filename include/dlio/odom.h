@@ -175,6 +175,7 @@ private:
   std::string imu_frame;
 
   // Preprocessing
+  bool filter_range_;
   double min_range_;
   double max_range_;
   pcl::CropBox<PointType> crop;
